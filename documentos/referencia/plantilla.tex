@@ -1,0 +1,76 @@
+% ---------- Codificación e idioma ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{csquotes} 
+
+% ---------- Matemáticas ----------
+\usepackage{amsmath, amssymb} 
+
+% ---------- Tipografía ----------
+\usepackage[ttdefault=true]{AnonymousPro}
+\usepackage{parskip}
+\usepackage{microtype}
+
+% ---------- Geometría ----------
+\usepackage[margin=2.5cm]{geometry}
+
+% ---------- Listas ----------
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=*, itemsep=2pt, topsep=3pt}
+\setlist[enumerate]{leftmargin=*, itemsep=2pt, topsep=3pt}
+
+% ---------- Cajas de color ----------
+\usepackage{tcolorbox}
+\usepackage{xcolor}
+
+% ---------- Gráficos ----------
+\usepackage{graphicx}
+\usepackage{float}
+
+% ---------- Bibliografía ----------
+\usepackage[backend=biber, style=ieee, sorting=none]{biblatex}
+\addbibresource{references.bib}
+
+% ---------- Hipervínculos (cargar al final) ----------
+\usepackage[hidelinks]{hyperref}
+
+% COLORES INSTITUCIONALES
+\definecolor{unamazul}{RGB}{0, 83, 155}
+\definecolor{unagris}{RGB}{240, 240, 240}
+
+% COMANDOS PERSONALIZADOS
+\newcommand{\captura}[1]{
+    \begin{center}
+        \includegraphics[width=0.7\textwidth]{imgs/#1}
+    \end{center}
+}
+
+\newcommand{\codigo}[1]{\texttt{#1}}
+
+% PORTADA
+\newcommand{\portadapractica}[5]{
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+    {\scshape\LARGE Universidad Nacional Autónoma de México\par}
+    \vspace{0.4cm}
+    {\scshape\large Facultad de Ingeniería\par}
+    \vspace{2.5cm}
+    {\color{unamazul}\rule{\textwidth}{1.5pt}\par}
+    \vspace{0.8cm}
+    {\Huge\bfseries #2\par}
+    \vspace{0.8cm}
+    {\color{unamazul}\rule{\textwidth}{1.5pt}\par}
+    \vspace{1.5cm}
+    {\Large\itshape #1\par}
+    \vspace{1.2cm}
+    {\large\textbf{Profesor:} #3\par}
+    \vspace{2.5cm}
+    {\large\bfseries Integrantes\par}
+    \vspace{0.6cm}
+    {\large #4\par}
+    \vfill
+    {\large #5\par}
+    \vspace{1cm}
+\end{titlepage}
+}
