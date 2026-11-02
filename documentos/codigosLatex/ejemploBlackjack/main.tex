@@ -1,0 +1,180 @@
+\documentclass{article}
+\input{plantilla}
+
+\begin{document}
+
+\portadapractica
+    {Programación Orientada a Objetos}
+    {Ejemplo Flyweight: Blackjack}
+    {Edgar Tista García}
+    {Robles Cancino Arturo Andres\\
+    Rodríguez Cárcamo Ditter Emmanuel\\
+    Santamaría Viveros César Yurem}
+    {2 de Noviembre, 2026}
+
+\section{Diseño del ejemplo: blackjack con ocho mazos}
+
+Se modeló un juego de blackjack con un \codigo{Repartidor} de ocho mazos (416 cartas en juego). La baraja completa contiene únicamente 52 combinaciones distintas de $(palo, rango)$, lo cual sugiere de inmediato la aplicación del patrón. La Tabla~\ref{tab:participantes} mapea los participantes con las clases del ejemplo.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Participante \cite[p.~199]{gamma1994design}} & \textbf{Clase en el ejemplo} \\ \hline
+\texttt{ConcreteFlyweight}     & \codigo{Carta} \\ \hline
+\texttt{FlyweightFactory}      & \codigo{CartaFactory} \\ \hline
+\texttt{Client}                & \codigo{Repartidor}, \codigo{Mano} \\ \hline
+\texttt{UnsharedConcreteFlyweight} & (no se requiere) \\ \hline
+\texttt{Flyweight} (interfaz)  & (no se requiere: un solo concrete) \\ \hline
+\end{tabular}
+\caption{Mapeo entre los participantes y las clases del ejemplo.}
+\label{tab:participantes}
+\end{table}
+
+El proyecto se organiza en ocho archivos:
+
+\begin{itemize}
+    \item \codigo{Palo.java}, \codigo{Rango.java}: enumeraciones que modelan el estado intrínseco primitivo. Por ser \texttt{enum}, la JVM garantiza una única instancia de cada constante.
+    \item \codigo{CartaImagen.java}: simula el peso gráfico de un naipe (20 KB). Es el estado intrínseco pesado.
+    \item \codigo{Carta.java}: el \texttt{ConcreteFlyweight}. Inmutable, con constructor de visibilidad de paquete.
+    \item \codigo{CartaFactory.java}: la \texttt{FlyweightFactory}. Mantiene un caché \texttt{EnumMap} con las 52 cartas.
+    \item \codigo{Repartidor.java}: el cliente que mantiene el orden extrínseco de las cartas.
+    \item \codigo{Mano.java}: el cliente que mantiene el estado extrínseco por jugador.
+    \item \codigo{DemoFlyweight.java}: la demostración y el análisis de memoria.
+\end{itemize}
+
+\section{Cómo funciona el código}
+
+\subsection{El flyweight: \texttt{Carta}}
+
+La clase \codigo{Carta} encapsula únicamente estado intrínseco: palo, rango e imagen. Es \texttt{final}, y sus campos igual, además de no poder instanciarse ya que debe ser inmutable por definición. Además, se dice que teniendo estas bases podemos generar un objeto \texttt{ConcreteFlyweight} el cual debería poder compartirse, pero ahora con datos particulares que los hacen intrínsecos \cite[p.~199]{gamma1994design}.
+
+\begin{verbatim}
+public final class Carta {
+    private final Palo palo;
+    private final Rango rango;
+    private final CartaImagen imagen;
+
+    Carta(Palo palo, Rango rango) {
+        this.palo   = palo;
+        this.rango  = rango;
+        this.imagen = new CartaImagen();
+    }
+    // getters, equals, hashCode, describe...
+}
+\end{verbatim}
+
+Además, \codigo{Carta} expone \codigo{describe(boolean bocaArriba)}, que recibe estado extrínseco por parámetro y lo combina con su estado intrínseco para producir un resultado. Ese método materializa la colaboración descrita en el libro donde dice que, el cliente pasa el estado extrínseco al flyweight cuando invoca sus operaciones \cite[p.~199]{gamma1994design}.
+
+\subsection{La fábrica: \texttt{CartaFactory}}
+
+La fábrica construye las 52 cartas una sola vez, en un método privado que se invoca al inicializar el campo estático \codigo{CACHE}. Usa \texttt{EnumMap} anidado, que indexa por el \texttt{ordinal()} del enum y ofrece acceso O(1) sin hashing.
+
+\begin{verbatim}
+private static final Map<Palo, Map<Rango, Carta>> CACHE =construirCache();
+
+private static Map<Palo, Map<Rango, Carta>> construirCache() {
+    Map<Palo, Map<Rango, Carta>> cache = new EnumMap<>(Palo.class);
+    for (Palo palo : Palo.values()) {
+        Map<Rango, Carta> porRango = new EnumMap<>(Rango.class);
+        for (Rango rango : Rango.values()) {
+            porRango.put(rango, new Carta(palo, rango));
+        }
+        cache.put(palo, Collections.unmodifiableMap(porRango));
+    }
+    return Collections.unmodifiableMap(cache);
+}
+
+public static Carta obtener(Palo palo, Rango rango) {
+    return CACHE.get(palo).get(rango);
+}
+\end{verbatim}
+
+El método \codigo{obtener} no crea objetos: solo lee del caché. Todo el programa obtiene cartas a través de esta fábrica, cumpliendo la restricción  fundamental del diseño, que es que los clientes no deben instanciar \texttt{ConcreteFlyweight} directamente, deben obtenerlos exclusivamente de la fábrica \cite[p.~199]{gamma1994design}. En este ejemplo la restricción no se deja a la disciplina del programador: se impone a nivel del compilador con el constructor \texttt{package-private}.
+
+\subsection{Los clientes: \texttt{Repartidor} y \texttt{Mano}}
+
+\codigo{Repartidor} construye la lista de cartas llamando a la fábrica en bucles anidados. Cada elemento de la lista es una referencia a una de las 52 cartas, no una copia. El orden resultante es estado extrínseco y vive en la lista del repartidor.
+
+\begin{verbatim}
+public Repartidor(int numMazos) {
+    List<Carta> temp = new ArrayList<>(numMazos * CARTAS_POR_MAZO);
+    for (int m = 0; m < numMazos; m++) {
+        for (Palo palo : Palo.values()) {
+            for (Rango rango : Rango.values()) {
+                temp.add(CartaFactory.obtener(palo, rango));
+            }
+        }
+    }
+    Collections.shuffle(temp);
+    this.cartas = temp;
+}
+\end{verbatim}
+
+\codigo{Mano} modela el estado extrínseco por jugador mediante la clase anidada inmutable \codigo{CartaEnMano}, que asocia una carta (referencia al flyweight) con un booleano \codigo{bocaArriba}. Esta separación evita la trampa de identidad que discute \cite[p.~197]{gamma1994design}: dos usos de la misma carta son lógicamente diferentes aunque apunten al mismo objeto.
+\clearpage
+\subsection{Flujo completo}
+
+El flujo de una ejecución típica es el siguiente:
+
+\begin{enumerate}
+    \item La JVM carga \codigo{CartaFactory} por primera vez. Se ejecuta \codigo{construirCache()} y se crean las 52 cartas. A partir de este momento, esas 52 instancias existen para siempre.
+    \item \codigo{DemoFlyweight.main} crea un \codigo{Repartidor} con 8 mazos. El constructor llama \codigo{CartaFactory.obtener} 416 veces; cada llamada devuelve una referencia, no un objeto nuevo.
+    \item El repartidor mezcla la lista y queda listo para repartir. La mezcla modifica el orden, no las cartas.
+    \item Al repartir una mano, el \codigo{Mano.recibir} envuelve la carta en \codigo{CartaEnMano}, agregando el estado extrínseco \codigo{bocaArriba}.
+    \item Al pedir una carta ya existente (por ejemplo, otra vez el As de picas), la fábrica devuelve la misma instancia. \codigo{System.identityHashCode} devuelve el mismo valor para ambas referencias.
+\end{enumerate}
+Las siguientes imágenes son capturas de ejecución del código:
+\captura{img1.png}
+\captura{img2.png}
+\section{Estado intrínseco y extrínseco}
+
+La Tabla~\ref{tab:estado} resume la separación.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Concepto} & \textbf{En el ejemplo} & \textbf{Dónde vive} \\ \hline
+Estado intrínseco & palo, rango, imagen & \codigo{Carta} \\ \hline
+Estado extrínseco (orden) & posición en el \codigo{Repartidor} & \codigo{Repartidor} \\ \hline
+Estado extrínseco (uso) & dueño, boca arriba & \codigo{Mano.CartaEnMano} \\ \hline
+\end{tabular}
+\caption{Separación entre estado intrínseco y extrínseco.}
+\label{tab:estado}
+\end{table}
+
+\section{¿Por qué es adecuado aplicar Flyweight aquí?}
+
+El libro enumera cinco condiciones que deben cumplirse para que el patrón sea aplicable \cite[p.~197]{gamma1994design}. A continuación se verifica cada una en el ejemplo.
+
+\begin{enumerate}
+    \item \textbf{La aplicación usa una gran cantidad de objetos.} La demo escala los cálculos a 200 mesas $\times$ 8 mazos $\times$ 52 cartas $=$ 83{,}200 usos. Aunque el ejemplo concreto use ocho mazos, el modelo escala linealmente con el número de mesas.
+
+    \item \textbf{Los costos de almacenamiento son altos por la cantidad de objetos.} Si cada \codigo{Carta} cargara su propia \codigo{CartaImagen} de 20 KB, 83{,}200 objetos ocuparían aproximadamente 1.6 GB. Con Flyweight, las 52 imágenes compartidas ocupan apenas 1 MB.
+
+    \item \textbf{La mayor parte del estado puede hacerse extrínseco.} Palo, rango e imagen son independientes del contexto; posición, dueño y visibilidad se calculan o almacenan en el cliente.
+
+    \item \textbf{Grupos de objetos pueden reemplazarse por unos pocos compartidos.} Las 83{,}200 instancias potenciales se reemplazan por 52 objetos compartidos más 83{,}200 referencias.
+
+    \item \textbf{La aplicación no depende de la identidad de los objetos.} El código evita comparar cartas con \codigo{==} para distinguir usos; \codigo{CartaEnMano} modela el «cuál» y \codigo{Carta} modela el «qué». Esto es algo que se menciona en el libro como un criterio importante; así se distingue cuáles objetos entran en juego en cada bloque de código.
+\end{enumerate}
+\subsection{Análisis de memoria}
+
+La demo imprime el uso real de memoria al construir el repartidor y al solicitar cartas existentes. Los valores típicos son:
+
+\begin{itemize}
+    \item Construir \codigo{Repartidor(8)}: aproximadamente 8 KB asignados (416 referencias más el overhead de la lista).
+    \item Solicitar una \codigo{Carta} ya existente: 0 bytes asignados, porque la fábrica devuelve una referencia sin crear objeto.
+\end{itemize}
+
+Este último valor es el argumento central del patrón: pedir un flyweight existente no genera nuevas instancias.
+
+\section*{Conclusión}
+Se considera que este ejemplo puede englobar un pequeño ejemplo escalable de cómo se puede llegar a aplicar el modelo Flyweight para diseñar programas donde se repiten grandes cantidades de datos que, gracias a un análisis detallado, se puede llegar a clasificar las características del sistema en intrínsecos y extrínsecos, para así dar una solución más amigable con la memoria.
+
+\section*{Referencias}
+\nocite{*}
+\printbibliography[heading=none]
+
+\end{document}
