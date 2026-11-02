@@ -1,0 +1,30 @@
+\documentclass{article}
+\input{plantilla}
+
+\begin{document}
+
+\portadapractica
+    {Programación Orientada a Objetos}
+    {Investigacion del patrón de diseño: FLyweight}
+    {Edgar Tista García}
+    {Robles Cancino Arturo Andres\\
+    Rodríguez Cárcamo Ditter Emmanuel\\
+    Santamaría Viveros César Yurem}
+    {2 de Noviembre, 2026}
+
+\section{Casos de uso}
+Segun el autor de Design Patterns Elements of Reusable Object-Oriented Software se dice que se debería emplear cuadno se cumplen las sigueintes caracteristicas:
+\begin{enumerate}
+    \item La aplicación usa una gran cantidad de objetos.
+    \item Los costos de almacenamiento son altos debido a la cantidad de objetos.
+    \item La mayor parte del estado de los objetos puede hacerse extrínseco.
+    \item Muchos grupos de objetos pueden reemplazarse por relativamente pocos objetos compartidos una vez que se elimina el estado extrínseco.
+    \item La aplicación no depende de la identidad de los objetos. Dado que los flyweights pueden compartirse, las pruebas de identidad devolverán verdadero para objetos conceptualmente distintos.
+\end{enumerate}
+El libro lo advierte antes de listar los criterios. No basta con que uno o dos se cumplan, sino que el patrón solo se justifica cuando los cinco se sostienen por la cantidad de abstraccióny división de entidades del software.
+
+\section*{Referencias}
+\nocite{*}
+\printbibliography[heading=none]
+
+\end{document}
